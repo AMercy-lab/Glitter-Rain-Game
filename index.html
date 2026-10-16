@@ -26,14 +26,16 @@
     <div id="scorebox" hidden>
       <div id="score">0</div>
       <div id="combo"></div>
+      <div id="lives"></div>
     </div>
     <div id="right">
-      <div id="lives"></div>
       <button id="pause" class="icon" title="Pause" hidden>❚❚</button>
-      <button id="mute" class="icon" title="Sound">♪</button>
+      <button id="music" class="icon" title="Music">🎵</button>
+      <button id="mute" class="icon" title="Sound effects">♪</button>
     </div>
   </div>
   <div id="powers"></div>
+  <div id="toast" aria-live="polite"></div>
 
   <!-- Start screen -->
   <section class="overlay" id="menu">
@@ -41,10 +43,15 @@
       <h1><span>Glitter</span> Rain</h1>
       <p class="tag">It's raining cute things! Catch them all as <b id="menu-name">you</b> ✨</p>
       <div class="legend">
-        <div><i>💖</i>10</div><div><i>🎀</i>15</div><div><i>💄</i>20</div><div><i>🧁</i>15</div><div><i>💎</i>50</div>
+        <div><i>💖</i>10</div><div><i>🎀</i>15</div><div><i>💄</i>20</div><div><i>🧁</i>15</div><div><i>💎</i>50</div><div><i>🦄</i>100</div>
       </div>
       <div class="legend small">
-        <div><i>⭐</i>shield</div><div><i>🧲</i>magnet</div><div><i>💝</i>+1 life</div><div class="bad"><i>⛈️</i>ouch</div><div class="bad"><i>💔</i>ouch</div>
+        <div><i>⭐</i>shield</div><div><i>🧲</i>magnet</div><div><i>💝</i>+1 life</div><div><i>🌈</i>slow-mo</div><div class="bad"><i>⛈️</i>ouch</div><div class="bad"><i>💔</i>ouch</div>
+      </div>
+      <div class="daily" id="daily"></div>
+      <div class="baskets">
+        <h3>Your basket</h3>
+        <div id="basket-list"></div>
       </div>
       <button id="play" class="big">Play ♡</button>
       <p class="hint">Move with ← → / A D, or drag your finger</p>
@@ -73,7 +80,9 @@
         <div><b id="final-best">0</b><span>your best</span></div>
       </div>
       <p id="save-msg" class="tag"></p>
+      <div id="over-extra"></div>
       <button id="again" class="big">Play again ♡</button>
+      <button id="to-menu" class="link">Change basket</button>
       <div class="board-wrap">
         <h3>Top sparklers</h3>
         <ol class="board" id="board-over"><li class="empty">Loading…</li></ol>

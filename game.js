@@ -50,6 +50,15 @@
     accessory: ['none', 'glasses', 'earrings', 'beard', 'scarf', 'backpack'],
   };
 
+  // Baskets unlock with your best score (kept in this browser).
+  const BASKETS = [
+    { id: 'pink', name: 'Pink Picnic', need: 0, body: '#ff8cc0', rim: '#f7b6d2', weave: '#ff5fa8', bow: '#fff' },
+    { id: 'lilac', name: 'Lilac Lace', need: 400, body: '#c6a6ff', rim: '#ebe0ff', weave: '#9b6dff', bow: '#ff5fa8' },
+    { id: 'gold', name: 'Golden Glam', need: 1200, body: '#ffd24d', rim: '#fff0a8', weave: '#e0a800', bow: '#ff4f9a', glint: true },
+    { id: 'rainbow', name: 'Rainbow Dream', need: 2500, body: '#ff8cc0', rim: '#fff', weave: 'rgba(255,255,255,.7)', bow: '#fff', rainbow: true },
+    { id: 'diamond', name: 'Diamond Deluxe', need: 5000, body: '#a8e6ff', rim: '#effbff', weave: '#4aa3ff', bow: '#fff', glint: true },
+  ];
+
   function normalizeStyle(s) {
     s = s && typeof s === 'object' ? s : {};
     const out = {};
@@ -284,20 +293,32 @@
 
     // basket (in front)
     if (o.basket !== false) {
-      c.fillStyle = '#f7b6d2';
+      const bk = o.basket || BASKETS[0];
+      c.fillStyle = bk.rim;
       c.beginPath(); c.ellipse(0, basketY - 4, 34, 7, 0, 0, Math.PI * 2); c.fill();
-      c.fillStyle = '#ff8cc0';
+      if (bk.rainbow) {
+        const rg = c.createLinearGradient(-34, 0, 34, 0);
+        ['#ff6b9a', '#ffb14a', '#ffe066', '#7ee0a0', '#6cc4ff', '#b38aff'].forEach((col, i) => rg.addColorStop(i / 5, col));
+        c.fillStyle = rg;
+      } else c.fillStyle = bk.body;
       c.beginPath();
       c.moveTo(-34, basketY - 4); c.lineTo(-27, basketY + 18); c.quadraticCurveTo(0, basketY + 24, 27, basketY + 18); c.lineTo(34, basketY - 4);
       c.quadraticCurveTo(0, basketY + 4, -34, basketY - 4); c.fill();
-      c.strokeStyle = '#ff5fa8'; c.lineWidth = 1.6;
+      c.strokeStyle = bk.weave; c.lineWidth = 1.6;
       for (let i = -3; i <= 3; i++) {
         c.beginPath(); c.moveTo(i * 9, basketY + 1); c.lineTo(i * 7.5, basketY + 20); c.stroke();
       }
       c.beginPath(); c.moveTo(-31, basketY + 7); c.quadraticCurveTo(0, basketY + 14, 31, basketY + 7); c.stroke();
       c.strokeStyle = '#fff'; c.lineWidth = 3;
       c.beginPath(); c.ellipse(0, basketY - 4, 34, 7, 0, Math.PI * 0.05, Math.PI * 0.95); c.stroke();
-      drawBow(c, 0, basketY + 10, 0.6, '#fff');
+      drawBow(c, 0, basketY + 10, 0.6, bk.bow);
+      if (bk.glint) { // twinkling glints on fancy baskets
+        c.fillStyle = '#fff';
+        for (let i = 0; i < 3; i++) {
+          const a = Math.max(0, Math.sin(t * 3 + i * 2.1));
+          if (a > 0.2) sparkleShape(c, -20 + i * 20, basketY + 4 + (i % 2) * 8, 3.5 * a);
+        }
+      }
       // hands over the rim
       c.fillStyle = skin;
       c.beginPath(); c.arc(-29, basketY - 2, 4.5, 0, Math.PI * 2); c.arc(29, basketY - 2, 4.5, 0, Math.PI * 2); c.fill();
@@ -330,8 +351,10 @@
     lipstick:{ emoji: '💄', pts: 20, weight: 14 },
     cupcake: { emoji: '🧁', pts: 15, weight: 18 },
     diamond: { emoji: '💎', pts: 50, weight: 4 },
+    unicorn: { emoji: '🦄', pts: 100, weight: 1.2 },
     star:    { emoji: '⭐', power: 'shield', weight: 2 },
     magnet:  { emoji: '🧲', power: 'magnet', weight: 2 },
+    rainbow: { emoji: '🌈', power: 'slow', weight: 1.5 },
     life:    { emoji: '💝', power: 'life', weight: 1 },
     storm:   { emoji: '⛈️', bad: true },
     broken:  { emoji: '💔', bad: true },
@@ -391,36 +414,76 @@
     c.fill();
   }
 
-  function drawBackdrop(c, t, dt) {
+  // Sky levels: the day turns to a starry night as your score climbs.
+  const LEVELS = [
+    { name: 'Sunny Day', at: 0, sky: ['#ffc6e6', '#f3d4ff', '#ffe9f4'], ground: ['#ffb3d6', '#ff94c6'], stars: 0.35, sun: 1 },
+    { name: 'Golden Hour', at: 300, sky: ['#ffcfb8', '#ffc6e0', '#fff0de'], ground: ['#ffb0c8', '#ff8fb8'], stars: 0.35, sun: 1 },
+    { name: 'Pink Sunset', at: 800, sky: ['#ff8fbf', '#ffaa8c', '#ffd8a8'], ground: ['#ff9cc4', '#f57fb2'], stars: 0.45, sun: 0.8 },
+    { name: 'Twilight', at: 1600, sky: ['#8f6fd6', '#de86c0', '#ffbfd2'], ground: ['#d886c4', '#b766ad'], stars: 0.75, sun: 0.2 },
+    { name: 'Starry Night', at: 3000, sky: ['#2b1f5c', '#5f3a96', '#b873b8'], ground: ['#9c5aa0', '#7a3f86'], stars: 1, sun: 0 },
+  ];
+  let skyPos = 0; // eases toward the current level index
+
+  function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+  function mixHex(a, b, f) {
+    const x = hexRgb(a), y = hexRgb(b);
+    return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * f)).join(',')})`;
+  }
+  function skyAt(pos) {
+    const i = Math.min(LEVELS.length - 1, Math.floor(pos)), j = Math.min(LEVELS.length - 1, i + 1), f = pos - i;
+    const A = LEVELS[i], B = LEVELS[j];
+    return {
+      sky: A.sky.map((c, k) => mixHex(c, B.sky[k], f)),
+      ground: A.ground.map((c, k) => mixHex(c, B.ground[k], f)),
+      stars: A.stars + (B.stars - A.stars) * f,
+      sun: A.sun + (B.sun - A.sun) * f,
+    };
+  }
+
+  function drawBackdrop(c, t, dt, levelIdx = 0) {
+    skyPos += (levelIdx - skyPos) * Math.min(1, dt * 0.8);
+    if (Math.abs(levelIdx - skyPos) < 0.001) skyPos = levelIdx;
+    const P_ = skyAt(skyPos);
     const g = c.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, '#ffc6e6');
-    g.addColorStop(0.55, '#f3d4ff');
-    g.addColorStop(1, '#ffe9f4');
+    g.addColorStop(0, P_.sky[0]);
+    g.addColorStop(0.55, P_.sky[1]);
+    g.addColorStop(1, P_.sky[2]);
     c.fillStyle = g; c.fillRect(0, 0, W, H);
 
-    // soft sun
-    const sg = c.createRadialGradient(W * 0.82, H * 0.16, 0, W * 0.82, H * 0.16, 140 * S);
-    sg.addColorStop(0, 'rgba(255,250,210,.9)'); sg.addColorStop(1, 'rgba(255,250,210,0)');
-    c.fillStyle = sg; c.fillRect(0, 0, W, H);
+    // soft sun, which turns into a moon at night
+    if (P_.sun > 0.01) {
+      const sy = H * (0.16 + (1 - P_.sun) * 0.3);
+      const sg = c.createRadialGradient(W * 0.82, sy, 0, W * 0.82, sy, 140 * S);
+      sg.addColorStop(0, `rgba(255,250,210,${0.9 * P_.sun})`); sg.addColorStop(1, 'rgba(255,250,210,0)');
+      c.fillStyle = sg; c.fillRect(0, 0, W, H);
+    }
+    const moon = 1 - Math.min(1, P_.sun * 3);
+    if (moon > 0.01) {
+      c.fillStyle = `rgba(255,248,225,${moon})`;
+      c.beginPath(); c.arc(W * 0.8, H * 0.14, 30 * S, 0, Math.PI * 2); c.fill();
+      c.fillStyle = mixHex(LEVELS[3].sky[0], LEVELS[4].sky[0], Math.min(1, Math.max(0, skyPos - 3)));
+      c.beginPath(); c.arc(W * 0.8 + 12 * S, H * 0.14 - 8 * S, 26 * S, 0, Math.PI * 2); c.fill();
+    }
 
     for (const tw of twinkles) {
-      const a = 0.35 + 0.35 * Math.sin(t * 2 + tw.p);
-      c.fillStyle = `rgba(255,255,255,${a})`;
-      sparkleShape(c, tw.x, tw.y, tw.r * 2.2 * S);
+      const a = (0.35 + 0.35 * Math.sin(t * 2 + tw.p)) * (0.6 + P_.stars * 0.6);
+      c.fillStyle = `rgba(255,255,255,${Math.min(1, a)})`;
+      sparkleShape(c, tw.x, tw.y, tw.r * (2.2 + P_.stars) * S);
     }
+    const cloudA = 0.7 - P_.stars * 0.45;
     for (const cl of clouds) {
       cl.x += cl.v * dt;
       if (cl.x > W + 40) { cl.x = -140 * cl.s * S; cl.y = 60 + Math.random() * H * 0.45; }
-      drawCloud(c, cl.x, cl.y, cl.s * S, 'rgba(255,255,255,.7)');
+      drawCloud(c, cl.x, cl.y, cl.s * S, `rgba(255,255,255,${cloudA})`);
     }
 
-    // ground: a frilly pink hill with flowers
-    c.fillStyle = '#ffb3d6';
+    // ground: a frilly hill with flowers
+    c.fillStyle = P_.ground[0];
     c.beginPath(); c.moveTo(0, H);
     c.lineTo(0, GROUND);
     for (let x = 0; x <= W + 20; x += 20) c.quadraticCurveTo(x + 10, GROUND - 8 * S, x + 20, GROUND);
     c.lineTo(W, H); c.closePath(); c.fill();
-    c.fillStyle = '#ff94c6';
+    c.fillStyle = P_.ground[1];
     c.fillRect(0, GROUND + 10 * S, W, H);
     for (let x = 18; x < W; x += 70) {
       flower(c, x + ((x * 37) % 23), GROUND + 6 * S, 4 * S, x % 140 ? '#fff' : '#ffe066');
@@ -448,7 +511,9 @@
   try { muted = localStorage.getItem('glitter_muted') === '1'; } catch {}
 
   function tone(freq, dur = 0.12, type = 'sine', vol = 0.15, delay = 0, slide = 0) {
-    if (muted) return;
+    if (!muted) playTone(freq, dur, type, vol, delay, slide);
+  }
+  function playTone(freq, dur, type, vol, delay = 0, slide = 0) {
     try {
       audio ??= new (window.AudioContext || window.webkitAudioContext)();
       if (audio.state === 'suspended') audio.resume();
@@ -471,7 +536,108 @@
     pop: () => tone(900, 0.08, 'sine', 0.1, 0, 0.4),
     over: () => [659, 523, 440, 330].forEach((f, i) => tone(f, 0.25, 'triangle', 0.1, i * 0.14)),
     start: () => [523, 659, 784].forEach((f, i) => tone(f, 0.12, 'triangle', 0.1, i * 0.07)),
+    level: () => [784, 988, 1175, 1568, 1975].forEach((f, i) => tone(f, 0.18, 'sine', 0.09, i * 0.07)),
   };
+
+  // Background music: a soft music-box loop over C - Am - F - G.
+  const music = { on: true, timer: null, step: 0, next: 0 };
+  try { music.on = localStorage.getItem('glitter_music') !== '0'; } catch {}
+  const CHORDS = [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]];
+  const ARP = [0, 1, 2, 1, 2, 1, 0, 1];
+  const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+  function musicTick() {
+    if (!audio) return;
+    const step = 60 / 100 / 2; // eighth notes at 100 bpm
+    while (music.next < audio.currentTime + 0.2) {
+      const s = music.step, ch = CHORDS[Math.floor(s / 8) % 4];
+      const d = Math.max(0, music.next - audio.currentTime);
+      if (s % 8 === 0) playTone(midi(ch[0] - 12), step * 7.5, 'sine', 0.05, d);
+      playTone(midi(ch[ARP[s % 8]] + 12), step * 0.95, 'triangle', 0.028, d);
+      if (s % 4 === 2 && (s * 7) % 3 === 0) playTone(midi(ch[(s >> 2) % 3] + 24), step * 1.6, 'sine', 0.018, d);
+      music.step++; music.next += step;
+    }
+  }
+  function startMusic() {
+    stopMusic();
+    if (!music.on) return;
+    try {
+      audio ??= new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+    } catch { return; }
+    music.next = audio.currentTime + 0.05;
+    music.timer = setInterval(musicTick, 50);
+    musicTick();
+  }
+  function stopMusic() { clearInterval(music.timer); music.timer = null; }
+
+  // ---------- daily challenge ----------
+  function localDay(offset = 0) {
+    const d = new Date(); d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  }
+  function hashStr(s) { let h = 2166136261; for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+  const CHALLENGES = [
+    (r) => { const n = 3 + r % 3; return { text: `Catch ${n} 💎 diamonds in one run`, done: (run) => (run.caught.diamond || 0) >= n }; },
+    (r) => { const n = 600 + (r % 5) * 150; return { text: `Score ${n} points in one run`, done: (run) => run.score >= n }; },
+    (r) => { const n = 15 + (r % 4) * 5; return { text: `Reach a ${n} catch combo`, done: (run) => run.maxCombo >= n }; },
+    (r) => { const n = 10 + (r % 3) * 4; return { text: `Catch ${n} 🎀 bows in one run`, done: (run) => (run.caught.bow || 0) >= n }; },
+    () => ({ text: 'Catch a 🦄 unicorn', done: (run) => (run.caught.unicorn || 0) >= 1 }),
+    (r) => { const n = 8 + (r % 3) * 3; return { text: `Catch ${n} 💄 lipsticks in one run`, done: (run) => (run.caught.lipstick || 0) >= n }; },
+  ];
+  const TODAY = localDay();
+  const daySeed = hashStr(TODAY);
+  const challenge = CHALLENGES[daySeed % CHALLENGES.length](daySeed >>> 8);
+  let daily = { lastDone: '', streak: 0 };
+  try { daily = { ...daily, ...JSON.parse(localStorage.getItem('glitter_daily') || '{}') }; } catch {}
+  const dailyDone = () => daily.lastDone === TODAY;
+
+  function completeDaily() {
+    daily.streak = daily.lastDone === localDay(-1) ? daily.streak + 1 : 1;
+    daily.lastDone = TODAY;
+    try { localStorage.setItem('glitter_daily', JSON.stringify(daily)); } catch {}
+    renderDaily();
+  }
+  function renderDaily() {
+    const el = $('daily');
+    const streak = daily.lastDone === TODAY || daily.lastDone === localDay(-1) ? daily.streak : 0;
+    el.replaceChildren();
+    const h = document.createElement('b'); h.textContent = dailyDone() ? '🏆 Daily challenge done!' : "🌸 Today's challenge";
+    const p = document.createElement('span'); p.textContent = challenge.text;
+    el.append(h, p);
+    if (streak > 0) { const s = document.createElement('em'); s.textContent = `🔥 ${streak}-day streak`; el.append(s); }
+    el.classList.toggle('done', dailyDone());
+  }
+
+  // ---------- baskets ----------
+  let basketId = 'pink';
+  try { basketId = localStorage.getItem('glitter_basket') || 'pink'; } catch {}
+  const unlocked = (b) => best >= b.need;
+  function currentBasket() {
+    const b = BASKETS.find((x) => x.id === basketId);
+    return b && unlocked(b) ? b : BASKETS[0];
+  }
+  function renderBaskets() {
+    const list = $('basket-list');
+    list.replaceChildren(...BASKETS.map((b) => {
+      const btn = document.createElement('button');
+      const open = unlocked(b);
+      btn.className = 'basket' + (currentBasket().id === b.id ? ' on' : '') + (open ? '' : ' locked');
+      const sw = document.createElement('i');
+      sw.style.background = b.rainbow ? 'linear-gradient(90deg,#ff6b9a,#ffb14a,#ffe066,#7ee0a0,#6cc4ff,#b38aff)' : b.body;
+      const label = document.createElement('span');
+      label.textContent = open ? b.name : `🔒 ${b.need.toLocaleString()}`;
+      btn.append(sw, label);
+      btn.title = open ? b.name : `${b.name}: reach ${b.need.toLocaleString()} points to unlock`;
+      btn.disabled = !open;
+      btn.onclick = () => {
+        basketId = b.id;
+        try { localStorage.setItem('glitter_basket', b.id); } catch {}
+        renderBaskets(); sfx.pop();
+      };
+      return btn;
+    }));
+  }
 
   // ---------- player identity ----------
   let me = { user: null, name: 'Guest', account: null, id: null, style: normalizeStyle(null), face: '' };
@@ -540,14 +706,16 @@
   const P = { x: 0, vx: 0, walk: 0, moving: 0, hurtT: 0, happyT: 0, blinkT: 3 };
   let items = [], particles = [], floaters = [];
   let score = 0, diamonds = 0, lives = 3, combo = 0, elapsed = 0, spawnT = 0;
-  let shieldT = 0, magnetT = 0, shake = 0;
+  let shieldT = 0, magnetT = 0, slowT = 0, shake = 0, levelIdx = 0;
+  let run = { caught: {}, maxCombo: 0, score: 0 };
   const keys = { left: false, right: false };
   let pointerX = null;
 
   function resetGame() {
     items = []; particles = []; floaters = [];
     score = 0; diamonds = 0; lives = 3; combo = 0; elapsed = 0; spawnT = 0.6;
-    shieldT = 0; magnetT = 0; shake = 0;
+    shieldT = 0; magnetT = 0; slowT = 0; shake = 0; levelIdx = 0;
+    run = { caught: {}, maxCombo: 0, score: 0 };
     P.x = W / 2; P.vx = 0; P.hurtT = 0; P.happyT = 0;
     updateHud();
   }
@@ -560,6 +728,7 @@
     const pw = [];
     if (shieldT > 0) pw.push(`⭐ ${Math.ceil(shieldT)}s`);
     if (magnetT > 0) pw.push(`🧲 ${Math.ceil(magnetT)}s`);
+    if (slowT > 0) pw.push(`🌈 ${Math.ceil(slowT)}s`);
     const box = $('powers');
     if (box.dataset.v !== pw.join('|')) {
       box.dataset.v = pw.join('|');
@@ -627,16 +796,45 @@
     }
     combo++;
     P.happyT = 0.5;
+    run.caught[it.key] = (run.caught[it.key] || 0) + 1;
+    run.maxCombo = Math.max(run.maxCombo, combo);
     if (def.power === 'shield') { shieldT = 6; sfx.power(); floatText(it.x, it.y, 'sparkle shield!', '#c08a00'); }
     else if (def.power === 'magnet') { magnetT = 7; sfx.power(); floatText(it.x, it.y, 'magnet!', '#d13c3c'); }
     else if (def.power === 'life') { lives = Math.min(5, lives + 1); sfx.power(); floatText(it.x, it.y, '+1 life', '#e0407f'); }
+    else if (def.power === 'slow') { slowT = 6; sfx.power(); floatText(it.x, it.y, 'slow-mo rainbow!', '#9b5de5'); }
     else {
       const pts = def.pts * multiplier();
       score += pts;
-      if (it.key === 'diamond') { diamonds++; sfx.diamond(); } else sfx.catch(combo);
-      floatText(it.x, it.y, `+${pts}`, it.key === 'diamond' ? '#4aa3ff' : '#e0407f');
+      if (it.key === 'diamond' || it.key === 'unicorn') sfx.diamond(); else sfx.catch(combo);
+      if (it.key === 'diamond') diamonds++;
+      floatText(it.x, it.y, `+${pts}`, it.key === 'diamond' ? '#4aa3ff' : it.key === 'unicorn' ? '#9b5de5' : '#e0407f');
     }
-    burst(it.x, it.y, ['#ff5fa8', '#ffd1e8', '#b693ff', '#ffe066', '#fff'], it.key === 'diamond' ? 24 : 12);
+    burst(it.x, it.y, ['#ff5fa8', '#ffd1e8', '#b693ff', '#ffe066', '#fff'], it.key === 'diamond' || it.key === 'unicorn' ? 24 : 12);
+    run.score = score;
+    checkProgress();
+  }
+
+  function checkProgress() {
+    let lv = 0;
+    for (let i = 0; i < LEVELS.length; i++) if (score >= LEVELS[i].at) lv = i;
+    if (lv > levelIdx) {
+      levelIdx = lv;
+      sfx.level();
+      toast(`${['☀️', '🌇', '🌅', '🌆', '🌙'][lv]} ${LEVELS[lv].name}!`);
+    }
+    if (!dailyDone() && challenge.done(run)) {
+      completeDaily();
+      setTimeout(() => { sfx.power(); toast('🏆 Daily challenge complete!'); }, 400);
+    }
+  }
+
+  let toastTimer;
+  function toast(text) {
+    const el = $('toast');
+    el.textContent = text;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
   }
 
   function update(dt) {
@@ -663,6 +861,7 @@
     P.happyT = Math.max(0, P.happyT - dt);
     shieldT = Math.max(0, shieldT - dt);
     magnetT = Math.max(0, magnetT - dt);
+    slowT = Math.max(0, slowT - dt);
     shake = Math.max(0, shake - dt);
 
     // spawning
@@ -678,7 +877,7 @@
     for (let i = items.length - 1; i >= 0; i--) {
       const it = items[i];
       const def = ITEMS[it.key];
-      it.y += it.vy * dt;
+      it.y += it.vy * dt * (slowT > 0 ? 0.5 : 1);
       it.sway += dt * 2.4;
       it.rot += it.spin * dt;
       let dx = Math.sin(it.sway) * it.swayAmp * dt;
@@ -731,7 +930,7 @@
   function render(t, dt) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (shake > 0) ctx.translate((Math.random() - 0.5) * 12 * shake, (Math.random() - 0.5) * 12 * shake);
-    drawBackdrop(ctx, t, dt);
+    drawBackdrop(ctx, t, dt, state === 'menu' ? 0 : levelIdx);
 
     // items
     for (const it of items) {
@@ -742,6 +941,9 @@
       if (ITEMS[it.key].bad) {
         ctx.fillStyle = 'rgba(70, 40, 90, 0.22)';
         ctx.beginPath(); ctx.arc(0, 0, it.size * 0.62, 0, Math.PI * 2); ctx.fill();
+      } else if (it.key === 'unicorn' || it.key === 'diamond') {
+        ctx.fillStyle = `rgba(255,255,255,${0.35 + 0.2 * Math.sin(t * 10)})`;
+        sparkleShape(ctx, 0, 0, it.size * 0.85);
       } else if (ITEMS[it.key].power) {
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
         ctx.beginPath(); ctx.arc(0, 0, it.size * 0.65 + Math.sin(t * 8) * 2, 0, Math.PI * 2); ctx.fill();
@@ -761,7 +963,7 @@
       ctx.rotate(Math.max(-0.12, Math.min(0.12, P.vx / (620 * S) * 0.12)));
       if (P.happyT > 0) ctx.translate(0, -Math.sin(P.happyT / 0.5 * Math.PI) * 6);
       ctx.globalAlpha = flicker ? 0.45 : 1;
-      drawCharacter(ctx, me.style, { t, walk: P.walk, moving: P.moving, mood: P.hurtT > 0 ? 'sad' : 'happy', blink: P.blinkT < 0 });
+      drawCharacter(ctx, me.style, { t, walk: P.walk, moving: P.moving, mood: P.hurtT > 0 ? 'sad' : 'happy', blink: P.blinkT < 0, basket: currentBasket() });
       ctx.globalAlpha = 1;
       if (shieldT > 0) {
         const a = shieldT < 1.5 ? 0.25 + 0.25 * Math.sin(t * 20) : 0.35;
@@ -805,19 +1007,49 @@
     show('menu', false); show('over', false); show('paused', false);
     $('scorebox').hidden = false; $('pause').hidden = false;
     sfx.start();
+    startMusic();
   }
 
   function setPaused(p) {
-    if (p && state === 'play') { state = 'paused'; show('paused', true); }
-    else if (!p && state === 'paused') { state = 'play'; show('paused', false); last = performance.now(); }
+    if (p && state === 'play') { state = 'paused'; show('paused', true); stopMusic(); }
+    else if (!p && state === 'paused') { state = 'play'; show('paused', false); last = performance.now(); startMusic(); }
+  }
+
+  function toMenu() {
+    state = 'menu';
+    items = []; floaters = [];
+    show('over', false);
+    $('scorebox').hidden = true;
+    renderBaskets(); renderDaily();
+    show('menu', true);
+    loadBoard($('board-menu'));
   }
 
   async function gameOver() {
     state = 'over';
+    stopMusic();
     sfx.over();
     keys.left = keys.right = false;
     $('pause').hidden = true;
+    const oldBest = best;
     if (score > best) { best = score; try { localStorage.setItem('glitter_best', String(best)); } catch {} }
+    const fresh = BASKETS.filter((b) => b.need > oldBest && b.need <= best);
+    const extra = $('over-extra');
+    extra.replaceChildren();
+    if (fresh.length) {
+      const d = document.createElement('div'); d.className = 'unlock';
+      d.textContent = `🎁 New basket unlocked: ${fresh.map((b) => b.name).join(', ')}! Pick it from the menu.`;
+      extra.append(d);
+    }
+    const next = BASKETS.find((b) => b.need > best);
+    if (next) {
+      const d = document.createElement('div'); d.className = 'next';
+      d.textContent = `${(next.need - best).toLocaleString()} more points to unlock ${next.name}`;
+      extra.append(d);
+    }
+    const dc = document.createElement('div'); dc.className = 'next';
+    dc.textContent = dailyDone() ? `🏆 Daily challenge done (🔥 ${daily.streak}-day streak)` : `🌸 Daily: ${challenge.text}`;
+    extra.append(dc);
     $('final-score').textContent = score.toLocaleString();
     $('final-diamonds').textContent = diamonds;
     $('final-best').textContent = best.toLocaleString();
@@ -847,6 +1079,7 @@
 
   $('play').onclick = startGame;
   $('again').onclick = startGame;
+  $('to-menu').onclick = toMenu;
   $('resume').onclick = () => setPaused(false);
   $('pause').onclick = () => setPaused(true);
 
@@ -856,6 +1089,14 @@
     try { localStorage.setItem('glitter_muted', muted ? '1' : '0'); } catch {}
     renderMute();
     if (!muted) sfx.pop();
+  };
+
+  function renderMusic() { $('music').classList.toggle('off', !music.on); }
+  $('music').onclick = () => {
+    music.on = !music.on;
+    try { localStorage.setItem('glitter_music', music.on ? '1' : '0'); } catch {}
+    renderMusic();
+    if (music.on && state === 'play') startMusic(); else stopMusic();
   };
 
   // ---------- input ----------
@@ -897,6 +1138,9 @@
   P.x = W / 2;
   renderIdentity();
   renderMute();
+  renderMusic();
+  renderBaskets();
+  renderDaily();
   updateHud();
   requestAnimationFrame(frameLoop);
 
