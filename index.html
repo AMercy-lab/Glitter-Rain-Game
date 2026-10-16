@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Glitter Rain</title>
+  <meta name="description" content="Catch the falling hearts, bows and diamonds as your start.ng character. Dodge the storm clouds!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="startng-card" id="player-card">
+      <img id="player-face" alt="">
+      <div class="who">
+        <b id="player-name">Guest</b>
+        <span id="player-account">Not signed in</span>
+      </div>
+      <button id="player-sign-in" class="pill" hidden>Sign in</button>
+    </div>
+    <div id="scorebox" hidden>
+      <div id="score">0</div>
+      <div id="combo"></div>
+    </div>
+    <div id="right">
+      <div id="lives"></div>
+      <button id="pause" class="icon" title="Pause" hidden>❚❚</button>
+      <button id="mute" class="icon" title="Sound">♪</button>
+    </div>
+  </div>
+  <div id="powers"></div>
+
+  <!-- Start screen -->
+  <section class="overlay" id="menu">
+    <div class="panel">
+      <h1><span>Glitter</span> Rain</h1>
+      <p class="tag">It's raining cute things! Catch them all as <b id="menu-name">you</b> ✨</p>
+      <div class="legend">
+        <div><i>💖</i>10</div><div><i>🎀</i>15</div><div><i>💄</i>20</div><div><i>🧁</i>15</div><div><i>💎</i>50</div>
+      </div>
+      <div class="legend small">
+        <div><i>⭐</i>shield</div><div><i>🧲</i>magnet</div><div><i>💝</i>+1 life</div><div class="bad"><i>⛈️</i>ouch</div><div class="bad"><i>💔</i>ouch</div>
+      </div>
+      <button id="play" class="big">Play ♡</button>
+      <p class="hint">Move with ← → / A D, or drag your finger</p>
+      <div class="board-wrap">
+        <h3>Top sparklers</h3>
+        <ol class="board" id="board-menu"><li class="empty">Loading…</li></ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- Paused -->
+  <section class="overlay" id="paused" hidden>
+    <div class="panel slim">
+      <h2>Paused</h2>
+      <button id="resume" class="big">Keep going ♡</button>
+    </div>
+  </section>
+
+  <!-- Game over -->
+  <section class="overlay" id="over" hidden>
+    <div class="panel">
+      <h2>So sparkly!</h2>
+      <div class="final">
+        <div><b id="final-score">0</b><span>sparkle points</span></div>
+        <div><b id="final-diamonds">0</b><span>diamonds</span></div>
+        <div><b id="final-best">0</b><span>your best</span></div>
+      </div>
+      <p id="save-msg" class="tag"></p>
+      <button id="again" class="big">Play again ♡</button>
+      <div class="board-wrap">
+        <h3>Top sparklers</h3>
+        <ol class="board" id="board-over"><li class="empty">Loading…</li></ol>
+      </div>
+    </div>
+  </section>
+
+  <script src="./game.js"></script>
+</body>
+</html>

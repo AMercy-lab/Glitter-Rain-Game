@@ -1,0 +1,8 @@
+{
+  "leaderboard": {
+    "stats": [
+      { "key": "points", "label": "Sparkle points", "order": "highest" },
+      { "key": "diamonds", "label": "Diamonds caught", "order": "highest" }
+    ]
+  }
+}
